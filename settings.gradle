@@ -1,0 +1,6 @@
+rootProject.name = 'API-SUKIMA'
+
+include 'sukima-domain'
+include 'sukima-application'
+include 'sukima-infrastructure'
+include 'sukima-web'
