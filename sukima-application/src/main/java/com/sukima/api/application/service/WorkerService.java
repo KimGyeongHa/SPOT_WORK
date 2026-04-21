@@ -1,6 +1,7 @@
 package com.sukima.api.application.service;
 
 import com.sukima.api.application.port.in.worker.RegisterWorkerUseCase;
+import com.sukima.api.domain.common.type.RoleType;
 import com.sukima.api.infrastructure.persistence.entity.user.UserEntity;
 import com.sukima.api.infrastructure.persistence.entity.worker.WorkerEntity;
 import com.sukima.api.infrastructure.persistence.repository.UserJpaRepository;
@@ -27,6 +28,10 @@ public class WorkerService implements RegisterWorkerUseCase {
 
         UserEntity userEntity = userJpaRepository.findById(command.userId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+
+        if (userEntity.getRole() != RoleType.WORKER) {
+            throw new IllegalArgumentException("WORKER 역할의 사용자만 구직자 프로필을 등록할 수 있습니다.");
+        }
 
         WorkerEntity entity = WorkerEntity.builder()
                 .user(userEntity)
