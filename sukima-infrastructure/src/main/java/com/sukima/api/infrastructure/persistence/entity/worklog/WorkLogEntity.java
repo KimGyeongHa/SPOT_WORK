@@ -22,8 +22,7 @@ public class WorkLogEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "match_id", nullable = false,
-            foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    @JoinColumn(name = "match_id", nullable = false)
     private MatchEntity match;
 
     @Enumerated(EnumType.STRING)

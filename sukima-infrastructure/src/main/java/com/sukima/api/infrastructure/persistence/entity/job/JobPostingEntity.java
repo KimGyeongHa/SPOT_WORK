@@ -20,8 +20,7 @@ public class JobPostingEntity extends BaseTimeEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "employer_id", nullable = false,
-            foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    @JoinColumn(name = "employer_id", nullable = false)
     private EmployerEntity employer;
 
     @Column(nullable = false)

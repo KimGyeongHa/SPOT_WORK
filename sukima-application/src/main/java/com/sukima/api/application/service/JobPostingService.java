@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class JobPostingService implements CreateJobPostingUseCase, GetNearbyJobPostingsUseCase {
 
@@ -30,8 +31,8 @@ public class JobPostingService implements CreateJobPostingUseCase, GetNearbyJobP
     @Override
     @Transactional
     public Long create(CreateJobPostingUseCase.Command command) {
-        EmployerEntity employer = employerJpaRepository.findById(command.employerId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구인자입니다."));
+        EmployerEntity employer = employerJpaRepository.findByUserId(command.userId())
+                .orElseThrow(() -> new IllegalArgumentException("구인자 프로필이 등록되지 않았습니다."));
 
         Point location = geometryFactory.createPoint(
                 new Coordinate(command.longitude(), command.latitude())
@@ -54,7 +55,6 @@ public class JobPostingService implements CreateJobPostingUseCase, GetNearbyJobP
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<JobPosting> getNearby(GetNearbyJobPostingsUseCase.Query query) {
         return jobPostingJpaRepository
                 .findNearby(query.latitude(), query.longitude(), query.radiusMeters())

@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class EmployerService implements RegisterEmployerUseCase {
 

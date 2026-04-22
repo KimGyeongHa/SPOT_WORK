@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class JobApplicationService implements ApplyJobUseCase, AcceptApplicationUseCase {
 
@@ -57,7 +58,6 @@ public class JobApplicationService implements ApplyJobUseCase, AcceptApplication
         JobApplicationEntity application = jobApplicationJpaRepository.findById(command.applicationId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 지원입니다."));
 
-        // 정원 체크 (Redis 동시성 제어는 추후 추가)
         int acceptedCount = jobApplicationJpaRepository.countByJobPostingIdAndStatus(
                 application.getJobPosting().getId(), ApplicationStatus.ACCEPTED.name());
 
@@ -65,7 +65,6 @@ public class JobApplicationService implements ApplyJobUseCase, AcceptApplication
             throw new IllegalStateException("정원이 초과되었습니다.");
         }
 
-        // 매칭 생성
         MatchEntity match = MatchEntity.builder()
                 .application(application)
                 .jobPosting(application.getJobPosting())

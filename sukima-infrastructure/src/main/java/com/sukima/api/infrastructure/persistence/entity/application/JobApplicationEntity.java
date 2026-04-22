@@ -22,13 +22,11 @@ public class JobApplicationEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "job_posting_id", nullable = false,
-            foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    @JoinColumn(name = "job_posting_id", nullable = false)
     private JobPostingEntity jobPosting;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "worker_id", nullable = false,
-            foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    @JoinColumn(name = "worker_id", nullable = false)
     private WorkerEntity worker;
 
     @Enumerated(EnumType.STRING)

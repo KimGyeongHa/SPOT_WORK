@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class WorkLogService implements CheckInUseCase, CheckOutUseCase {
 

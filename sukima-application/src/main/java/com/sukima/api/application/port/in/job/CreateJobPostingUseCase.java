@@ -7,7 +7,7 @@ public interface CreateJobPostingUseCase {
     Long create(Command command);
 
     record Command(
-            Long employerId,
+            Long userId,
             String title,
             String description,
             double latitude,
