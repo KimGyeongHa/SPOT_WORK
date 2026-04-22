@@ -3,6 +3,8 @@ package com.sukima.api.application.service;
 import com.sukima.api.application.port.in.application.AcceptApplicationUseCase;
 import com.sukima.api.application.port.in.application.ApplyJobUseCase;
 import com.sukima.api.domain.application.type.ApplicationStatus;
+import com.sukima.api.domain.common.exception.BusinessException;
+import com.sukima.api.domain.common.exception.ErrorCode;
 import com.sukima.api.domain.match.type.MatchStatus;
 import com.sukima.api.infrastructure.persistence.entity.application.JobApplicationEntity;
 import com.sukima.api.infrastructure.persistence.entity.job.JobPostingEntity;
@@ -33,14 +35,14 @@ public class JobApplicationService implements ApplyJobUseCase, AcceptApplication
     public Long apply(ApplyJobUseCase.Command command) {
         if (jobApplicationJpaRepository.existsByJobPostingIdAndWorkerId(
                 command.jobPostingId(), command.workerId())) {
-            throw new IllegalArgumentException("이미 지원한 공고입니다.");
+            throw new BusinessException(ErrorCode.DUPLICATE_APPLICATION);
         }
 
         JobPostingEntity jobPosting = jobPostingJpaRepository.findById(command.jobPostingId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 공고입니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.JOB_POSTING_NOT_FOUND));
 
         WorkerEntity worker = workerJpaRepository.findById(command.workerId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구직자입니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.WORKER_NOT_FOUND));
 
         JobApplicationEntity entity = JobApplicationEntity.builder()
                 .jobPosting(jobPosting)
@@ -56,13 +58,13 @@ public class JobApplicationService implements ApplyJobUseCase, AcceptApplication
     @Transactional
     public Long accept(AcceptApplicationUseCase.Command command) {
         JobApplicationEntity application = jobApplicationJpaRepository.findById(command.applicationId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 지원입니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
 
         int acceptedCount = jobApplicationJpaRepository.countByJobPostingIdAndStatus(
                 application.getJobPosting().getId(), ApplicationStatus.ACCEPTED.name());
 
         if (acceptedCount >= application.getJobPosting().getCapacity()) {
-            throw new IllegalStateException("정원이 초과되었습니다.");
+            throw new BusinessException(ErrorCode.CAPACITY_EXCEEDED);
         }
 
         MatchEntity match = MatchEntity.builder()

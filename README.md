@@ -99,3 +99,12 @@ sukima-web (전체 참조 + Security, JWT)
 📄 [노션에서 보기](https://button-pixie-53d.notion.site/29c9adcc9f4d80f9a203ebcac2df5bbb?source=copy_link)
 
 <br>
+
+## 📡 API 명세
+
+Swagger UI를 통해 확인할 수 있습니다.
+```
+http://localhost:8080/swagger-ui/index.html
+```
+
+<br>

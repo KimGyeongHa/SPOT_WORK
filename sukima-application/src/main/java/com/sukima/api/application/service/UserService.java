@@ -1,6 +1,8 @@
 package com.sukima.api.application.service;
 
 import com.sukima.api.application.port.in.user.RegisterUserUseCase;
+import com.sukima.api.domain.common.exception.BusinessException;
+import com.sukima.api.domain.common.exception.ErrorCode;
 import com.sukima.api.infrastructure.persistence.entity.user.UserEntity;
 import com.sukima.api.infrastructure.persistence.repository.UserJpaRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +22,7 @@ public class UserService implements RegisterUserUseCase {
     @Transactional
     public Long register(Command command) {
         if (userJpaRepository.existsByEmail(command.email())) {
-            throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
+            throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         }
 
         UserEntity entity = UserEntity.builder()

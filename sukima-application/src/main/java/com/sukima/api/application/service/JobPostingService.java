@@ -2,6 +2,8 @@ package com.sukima.api.application.service;
 
 import com.sukima.api.application.port.in.job.CreateJobPostingUseCase;
 import com.sukima.api.application.port.in.job.GetNearbyJobPostingsUseCase;
+import com.sukima.api.domain.common.exception.BusinessException;
+import com.sukima.api.domain.common.exception.ErrorCode;
 import com.sukima.api.domain.job.JobPosting;
 import com.sukima.api.domain.job.type.JobStatus;
 import com.sukima.api.infrastructure.persistence.entity.employer.EmployerEntity;
@@ -32,7 +34,7 @@ public class JobPostingService implements CreateJobPostingUseCase, GetNearbyJobP
     @Transactional
     public Long create(CreateJobPostingUseCase.Command command) {
         EmployerEntity employer = employerJpaRepository.findByUserId(command.userId())
-                .orElseThrow(() -> new IllegalArgumentException("구인자 프로필이 등록되지 않았습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.EMPLOYER_NOT_FOUND));
 
         Point location = geometryFactory.createPoint(
                 new Coordinate(command.longitude(), command.latitude())
