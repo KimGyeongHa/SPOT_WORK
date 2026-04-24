@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "employers")
@@ -33,6 +34,12 @@ public class EmployerEntity extends BaseTimeEntity {
     @Column(nullable = false)
     private BigDecimal rating = BigDecimal.ZERO;
 
+    @Column(name = "no_show_count", nullable = false)
+    private int noShowCount = 0;
+
+    @Column(name = "penalty_until")
+    private LocalDateTime penaltyUntil;
+
     @Builder
     public EmployerEntity(Long id, UserEntity user, String name, String phone, String companyName, BigDecimal rating) {
         this.id = id;
@@ -41,5 +48,21 @@ public class EmployerEntity extends BaseTimeEntity {
         this.phone = phone;
         this.companyName = companyName;
         this.rating = rating;
+        this.noShowCount = 0;
+    }
+
+    public void increasePenalty() {
+        this.noShowCount++;
+        this.penaltyUntil = calculatePenaltyUntil(this.noShowCount);
+    }
+
+    public boolean isPenalized() {
+        return penaltyUntil != null && penaltyUntil.isAfter(LocalDateTime.now());
+    }
+
+    private LocalDateTime calculatePenaltyUntil(int count) {
+        if (count >= 5) return LocalDateTime.now().plusDays(30);
+        if (count >= 3) return LocalDateTime.now().plusDays(7);
+        return null;
     }
 }

@@ -36,6 +36,11 @@ public class JobPostingService implements CreateJobPostingUseCase, GetNearbyJobP
         EmployerEntity employer = employerJpaRepository.findByUserId(command.userId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.EMPLOYER_NOT_FOUND));
 
+        // 패널티 체크
+        if (employer.isPenalized()) {
+            throw new BusinessException(ErrorCode.EMPLOYER_PENALIZED);
+        }
+
         Point location = geometryFactory.createPoint(
                 new Coordinate(command.longitude(), command.latitude())
         );

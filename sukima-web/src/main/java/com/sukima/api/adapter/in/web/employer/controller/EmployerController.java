@@ -9,6 +9,7 @@ import com.sukima.api.application.port.in.job.CreateJobPostingUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,7 +29,7 @@ public class EmployerController {
     @PostMapping("/profile")
     public ResponseEntity<EmployerProfileResponse> registerProfile(
             @AuthenticationPrincipal Long userId,
-            @RequestBody EmployerProfileRequest request) {
+            @Valid @RequestBody EmployerProfileRequest request) {
 
         Long employerId = registerEmployerUseCase.register(
                 new RegisterEmployerUseCase.Command(userId, request.name(), request.phone(), request.companyName())
@@ -40,7 +41,7 @@ public class EmployerController {
     @PostMapping("/jobs")
     public ResponseEntity<JobPostingResponse> createJobPosting(
             @AuthenticationPrincipal Long userId,
-            @RequestBody JobPostingRequest request) {
+            @Valid @RequestBody JobPostingRequest request) {
 
         Long jobPostingId = createJobPostingUseCase.create(
                 new CreateJobPostingUseCase.Command(

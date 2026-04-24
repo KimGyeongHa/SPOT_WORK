@@ -2,6 +2,7 @@ package com.sukima.api.application.service;
 
 import com.sukima.api.application.port.in.worklog.CheckInUseCase;
 import com.sukima.api.application.port.in.worklog.CheckOutUseCase;
+import com.sukima.api.application.port.out.noshow.NoShowSchedulerPort;
 import com.sukima.api.domain.common.exception.BusinessException;
 import com.sukima.api.domain.common.exception.ErrorCode;
 import com.sukima.api.domain.payment.type.PaymentStatus;
@@ -31,6 +32,7 @@ public class WorkLogService implements CheckInUseCase, CheckOutUseCase {
     private final WorkLogJpaRepository workLogJpaRepository;
     private final MatchJpaRepository matchJpaRepository;
     private final PaymentJpaRepository paymentJpaRepository;
+    private final NoShowSchedulerPort noShowSchedulerPort;
 
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
@@ -60,6 +62,9 @@ public class WorkLogService implements CheckInUseCase, CheckOutUseCase {
                 .build();
 
         workLogJpaRepository.save(entity);
+
+        // 정상 체크인 → 노쇼 체크 예약 취소
+        noShowSchedulerPort.cancel(command.matchId());
     }
 
     @Override

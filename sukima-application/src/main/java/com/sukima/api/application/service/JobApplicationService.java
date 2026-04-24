@@ -2,6 +2,7 @@ package com.sukima.api.application.service;
 
 import com.sukima.api.application.port.in.application.AcceptApplicationUseCase;
 import com.sukima.api.application.port.in.application.ApplyJobUseCase;
+import com.sukima.api.application.port.out.noshow.NoShowSchedulerPort;
 import com.sukima.api.domain.application.type.ApplicationStatus;
 import com.sukima.api.domain.common.exception.BusinessException;
 import com.sukima.api.domain.common.exception.ErrorCode;
@@ -29,20 +30,27 @@ public class JobApplicationService implements ApplyJobUseCase, AcceptApplication
     private final JobPostingJpaRepository jobPostingJpaRepository;
     private final WorkerJpaRepository workerJpaRepository;
     private final MatchJpaRepository matchJpaRepository;
+    private final NoShowSchedulerPort noShowSchedulerPort;
 
     @Override
     @Transactional
     public Long apply(ApplyJobUseCase.Command command) {
+        WorkerEntity worker = workerJpaRepository.findByUserId(command.userId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.WORKER_NOT_FOUND));
+
+        // 패널티 체크
+        if (worker.isPenalized()) {
+            throw new BusinessException(ErrorCode.WORKER_PENALIZED);
+        }
+
+        // 중복지원 체크
         if (jobApplicationJpaRepository.existsByJobPostingIdAndWorkerId(
-                command.jobPostingId(), command.workerId())) {
+                command.jobPostingId(), worker.getId())) {
             throw new BusinessException(ErrorCode.DUPLICATE_APPLICATION);
         }
 
         JobPostingEntity jobPosting = jobPostingJpaRepository.findById(command.jobPostingId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.JOB_POSTING_NOT_FOUND));
-
-        WorkerEntity worker = workerJpaRepository.findById(command.workerId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.WORKER_NOT_FOUND));
 
         JobApplicationEntity entity = JobApplicationEntity.builder()
                 .jobPosting(jobPosting)
@@ -75,6 +83,11 @@ public class JobApplicationService implements ApplyJobUseCase, AcceptApplication
                 .confirmedAt(LocalDateTime.now())
                 .build();
 
-        return matchJpaRepository.save(match).getId();
+        MatchEntity saved = matchJpaRepository.save(match);
+
+        // 노쇼 체크 예약 (근무 시작 + 15분 후 Redis TTL 만료 → 이벤트 발행)
+        noShowSchedulerPort.schedule(saved.getId(), application.getJobPosting().getStartAt());
+
+        return saved.getId();
     }
 }

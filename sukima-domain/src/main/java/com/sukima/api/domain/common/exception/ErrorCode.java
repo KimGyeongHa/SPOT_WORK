@@ -42,7 +42,11 @@ public enum ErrorCode {
     ALREADY_CHECKED_IN(400, "L001", "이미 체크인되었습니다."),
     ALREADY_CHECKED_OUT(400, "L002", "이미 체크아웃되었습니다."),
     CHECK_IN_REQUIRED(400, "L003", "체크인 후 체크아웃할 수 있습니다."),
-    OUT_OF_RANGE(400, "L004", "근무지에서 너무 멀리 떨어져 있습니다.");
+    OUT_OF_RANGE(400, "L004", "근무지에서 너무 멀리 떨어져 있습니다."),
+
+    // 패널티
+    WORKER_PENALIZED(403, "X001", "패널티로 인해 지원이 제한되었습니다."),
+    EMPLOYER_PENALIZED(403, "X002", "패널티로 인해 공고 등록이 제한되었습니다.");
 
     private final int status;
     private final String code;

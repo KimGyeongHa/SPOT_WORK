@@ -4,5 +4,5 @@ public interface ApplyJobUseCase {
 
     Long apply(Command command);
 
-    record Command(Long jobPostingId, Long workerId) {}
+    record Command(Long jobPostingId, Long userId) {}
 }

@@ -14,7 +14,7 @@ public interface JobPostingJpaRepository extends JpaRepository<JobPostingEntity,
             WHERE status = 'OPEN'
             AND ST_DWithin(
                 location::geography,
-                ST_MakePoint(:lng, :lat)::geography,
+                ST_SetSRID(ST_MakePoint(:lng, :lat),4326)::geography,
                 :radius
             )
             """, nativeQuery = true)

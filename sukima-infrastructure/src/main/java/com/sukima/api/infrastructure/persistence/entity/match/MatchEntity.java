@@ -56,4 +56,8 @@ public class MatchEntity {
         this.confirmedAt = confirmedAt;
         this.completedAt = completedAt;
     }
+
+    public void cancelByNoShow() {
+        this.status = MatchStatus.CANCELLED;
+    }
 }

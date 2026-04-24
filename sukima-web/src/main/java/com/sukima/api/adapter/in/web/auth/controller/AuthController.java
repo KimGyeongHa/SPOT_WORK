@@ -7,10 +7,13 @@ import com.sukima.api.adapter.in.web.auth.response.LoginResponse;
 import com.sukima.api.adapter.in.web.auth.response.RegisterResponse;
 import com.sukima.api.application.port.in.user.LoginUseCase;
 import com.sukima.api.application.port.in.user.RegisterUserUseCase;
+import com.sukima.api.domain.common.exception.BusinessException;
+import com.sukima.api.domain.common.exception.ErrorCode;
 import com.sukima.api.security.jwt.JwtTokenProvider;
 import com.sukima.api.security.jwt.RefreshTokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,7 +31,7 @@ public class AuthController {
 
     @Operation(summary = "회원가입", description = "이메일, 비밀번호, 역할(WORKER/EMPLOYER)로 회원가입합니다.")
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponse> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
         Long userId = registerUserUseCase.register(
                 new RegisterUserUseCase.Command(request.email(), request.password(), request.role())
         );
@@ -37,7 +40,7 @@ public class AuthController {
 
     @Operation(summary = "로그인", description = "이메일, 비밀번호로 로그인 후 AccessToken(15분)과 RefreshToken(7일)을 발급합니다.")
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginUseCase.Result result = loginUseCase.login(
                 new LoginUseCase.Command(request.email(), request.password())
         );
@@ -52,17 +55,17 @@ public class AuthController {
 
     @Operation(summary = "토큰 재발급", description = "RefreshToken으로 AccessToken과 RefreshToken을 재발급합니다. (RTR 방식 - 기존 RefreshToken 폐기)")
     @PostMapping("/refresh")
-    public ResponseEntity<LoginResponse> refresh(@RequestBody RefreshRequest request) {
+    public ResponseEntity<LoginResponse> refresh(@Valid @RequestBody RefreshRequest request) {
         String refreshToken = request.refreshToken();
 
         if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw new IllegalArgumentException("유효하지 않은 리프레시 토큰입니다.");
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
 
         Long userId = jwtTokenProvider.getUserId(refreshToken);
 
         if (!refreshTokenService.validate(userId, refreshToken)) {
-            throw new IllegalArgumentException("리프레시 토큰이 일치하지 않습니다.");
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
 
         refreshTokenService.delete(userId);
@@ -80,7 +83,7 @@ public class AuthController {
 
     @Operation(summary = "로그아웃", description = "RefreshToken을 Redis에서 삭제합니다.")
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestBody RefreshRequest request) {
+    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshRequest request) {
         Long userId = jwtTokenProvider.getUserId(request.refreshToken());
         refreshTokenService.delete(userId);
         return ResponseEntity.ok().build();

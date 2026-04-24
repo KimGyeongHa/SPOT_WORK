@@ -67,4 +67,12 @@ public class JobPostingEntity extends BaseTimeEntity {
         this.endAt = endAt;
         this.status = status;
     }
+
+    public void reopen() {
+        this.status = JobStatus.OPEN;
+    }
+
+    public void close() {
+        this.status = JobStatus.CLOSED;
+    }
 }
