@@ -6,10 +6,11 @@ import com.sukima.api.domain.common.exception.ErrorCode;
 import com.sukima.api.domain.job.type.JobStatus;
 import com.sukima.api.domain.match.type.MatchStatus;
 import com.sukima.api.domain.worklog.type.WorkLogType;
-import com.sukima.api.infrastructure.persistence.entity.job.JobPostingEntity;
 import com.sukima.api.infrastructure.persistence.entity.match.MatchEntity;
+import com.sukima.api.infrastructure.persistence.entity.noshow.NoShowScheduleEntity;
 import com.sukima.api.infrastructure.persistence.entity.worker.WorkerEntity;
 import com.sukima.api.infrastructure.persistence.repository.MatchJpaRepository;
+import com.sukima.api.infrastructure.persistence.repository.NoShowScheduleJpaRepository;
 import com.sukima.api.infrastructure.persistence.repository.WorkLogJpaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ public class NoShowService implements HandleNoShowUseCase {
 
     private final MatchJpaRepository matchJpaRepository;
     private final WorkLogJpaRepository workLogJpaRepository;
+    private final NoShowScheduleJpaRepository noShowScheduleJpaRepository;
 
     @Override
     @Transactional
@@ -54,8 +56,11 @@ public class NoShowService implements HandleNoShowUseCase {
         // 매칭 취소
         match.cancelByNoShow();
 
-        // 공고 다시 OPEN으로 (다른 Worker 지원 가능)
-        JobPostingEntity jobPosting = match.getJobPosting();
-        jobPosting.reopen();
+        // 공고 다시 OPEN으로
+        match.getJobPosting().reopen();
+
+        // DB 처리 완료 마킹
+        noShowScheduleJpaRepository.findByMatchId(matchId)
+                .ifPresent(NoShowScheduleEntity::markProcessed);
     }
 }
