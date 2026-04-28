@@ -5,6 +5,7 @@ import com.sukima.api.application.port.in.worklog.CheckOutUseCase;
 import com.sukima.api.application.port.out.noshow.NoShowSchedulerPort;
 import com.sukima.api.domain.common.exception.BusinessException;
 import com.sukima.api.domain.common.exception.ErrorCode;
+import com.sukima.api.domain.match.type.MatchStatus;
 import com.sukima.api.domain.payment.type.PaymentStatus;
 import com.sukima.api.domain.worklog.type.WorkLogType;
 import com.sukima.api.infrastructure.persistence.entity.match.MatchEntity;
@@ -41,12 +42,20 @@ public class WorkLogService implements CheckInUseCase, CheckOutUseCase {
     @Override
     @Transactional
     public void checkIn(CheckInUseCase.Command command) {
+        MatchEntity match = matchJpaRepository.findById(command.matchId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+
+        // 본인의 매칭이 맞는지 확인
+        validateOwner(match, command.userId());
+
+        // 매칭이 CONFIRMED 상태인지 확인
+        if (match.getStatus() != MatchStatus.CONFIRMED) {
+            throw new BusinessException(ErrorCode.INVALID_MATCH_STATUS);
+        }
+
         if (workLogJpaRepository.existsByMatchIdAndType(command.matchId(), WorkLogType.CHECK_IN)) {
             throw new BusinessException(ErrorCode.ALREADY_CHECKED_IN);
         }
-
-        MatchEntity match = matchJpaRepository.findById(command.matchId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
 
         validateLocation(match, command.latitude(), command.longitude());
 
@@ -70,6 +79,12 @@ public class WorkLogService implements CheckInUseCase, CheckOutUseCase {
     @Override
     @Transactional
     public void checkOut(CheckOutUseCase.Command command) {
+        MatchEntity match = matchJpaRepository.findById(command.matchId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+
+        // 본인의 매칭이 맞는지 확인
+        validateOwner(match, command.userId());
+
         if (!workLogJpaRepository.existsByMatchIdAndType(command.matchId(), WorkLogType.CHECK_IN)) {
             throw new BusinessException(ErrorCode.CHECK_IN_REQUIRED);
         }
@@ -77,9 +92,6 @@ public class WorkLogService implements CheckInUseCase, CheckOutUseCase {
         if (workLogJpaRepository.existsByMatchIdAndType(command.matchId(), WorkLogType.CHECK_OUT)) {
             throw new BusinessException(ErrorCode.ALREADY_CHECKED_OUT);
         }
-
-        MatchEntity match = matchJpaRepository.findById(command.matchId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
 
         validateLocation(match, command.latitude(), command.longitude());
 
@@ -97,6 +109,18 @@ public class WorkLogService implements CheckInUseCase, CheckOutUseCase {
         workLogJpaRepository.save(checkOut);
 
         processPayment(match, checkOut.getScannedAt());
+
+        // 매칭 상태를 COMPLETED로 변경
+        match.complete();
+    }
+
+    /**
+     * 매칭의 Worker가 요청자(userId)와 일치하는지 검증
+     */
+    private void validateOwner(MatchEntity match, Long userId) {
+        if (!match.getWorker().getUser().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
     }
 
     private void validateLocation(MatchEntity match, double lat, double lng) {

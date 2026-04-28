@@ -4,5 +4,5 @@ public interface CheckOutUseCase {
 
     void checkOut(Command command);
 
-    record Command(Long matchId, Long workerId, double latitude, double longitude) {}
+    record Command(Long matchId, Long userId, double latitude, double longitude) {}
 }

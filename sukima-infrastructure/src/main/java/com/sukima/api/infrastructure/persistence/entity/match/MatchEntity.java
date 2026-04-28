@@ -60,4 +60,9 @@ public class MatchEntity {
     public void cancelByNoShow() {
         this.status = MatchStatus.CANCELLED;
     }
+
+    public void complete() {
+        this.status = MatchStatus.COMPLETED;
+        this.completedAt = LocalDateTime.now();
+    }
 }

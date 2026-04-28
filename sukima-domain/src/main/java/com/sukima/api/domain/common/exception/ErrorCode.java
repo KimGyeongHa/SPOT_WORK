@@ -37,6 +37,7 @@ public enum ErrorCode {
     APPLICATION_NOT_FOUND(404, "P002", "존재하지 않는 지원입니다."),
     CAPACITY_EXCEEDED(400, "P003", "정원이 초과되었습니다."),
     MATCH_NOT_FOUND(404, "M001", "존재하지 않는 매칭입니다."),
+    INVALID_MATCH_STATUS(400, "M002", "유효하지 않은 매칭 상태입니다."),
 
     // 근무 로그
     ALREADY_CHECKED_IN(400, "L001", "이미 체크인되었습니다."),
