@@ -66,6 +66,10 @@ public class JwtTokenProvider {
         return refreshExpiration;
     }
 
+    public long getAccessExpiration() {
+        return accessExpiration;
+    }
+
     public boolean validateToken(String token) {
         try {
             getClaims(token);
