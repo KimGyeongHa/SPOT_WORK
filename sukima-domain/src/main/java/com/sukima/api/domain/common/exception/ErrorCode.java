@@ -47,7 +47,15 @@ public enum ErrorCode {
 
     // 패널티
     WORKER_PENALIZED(403, "X001", "패널티로 인해 지원이 제한되었습니다."),
-    EMPLOYER_PENALIZED(403, "X002", "패널티로 인해 공고 등록이 제한되었습니다.");
+    EMPLOYER_PENALIZED(403, "X002", "패널티로 인해 공고 등록이 제한되었습니다."),
+
+    // QR
+    INVALID_QR_TOKEN(400, "Q001", "유효하지 않은 QR 토큰입니다."),
+    EXPIRED_QR_TOKEN(400, "Q002", "만료된 QR 토큰입니다."),
+    QR_VERSION_MISMATCH(400, "Q003", "재발급된 QR이 아닙니다. 최신 QR을 다시 확인해주세요."),
+
+    // 동시성
+    LOCK_ACQUISITION_FAILED(409, "X003", "현재 처리 중인 요청이 있습니다. 잠시 후 다시 시도해주세요.");
 
     private final int status;
     private final String code;

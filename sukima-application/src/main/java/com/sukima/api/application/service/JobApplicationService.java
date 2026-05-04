@@ -2,6 +2,7 @@ package com.sukima.api.application.service;
 
 import com.sukima.api.application.port.in.application.AcceptApplicationUseCase;
 import com.sukima.api.application.port.in.application.ApplyJobUseCase;
+import com.sukima.api.application.port.out.lock.DistributedLockPort;
 import com.sukima.api.application.port.out.noshow.NoShowSchedulerPort;
 import com.sukima.api.domain.application.type.ApplicationStatus;
 import com.sukima.api.domain.common.exception.BusinessException;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Transactional(readOnly = true)
@@ -31,6 +33,16 @@ public class JobApplicationService implements ApplyJobUseCase, AcceptApplication
     private final WorkerJpaRepository workerJpaRepository;
     private final MatchJpaRepository matchJpaRepository;
     private final NoShowSchedulerPort noShowSchedulerPort;
+    private final DistributedLockPort distributedLockPort;
+
+    // 락 키 prefix
+    private static final String ACCEPT_LOCK_PREFIX = "lock:accept:job:";
+
+    // 락 대기 시간: 3초
+    private static final long LOCK_WAIT_TIME = 3L;
+
+    // 락 유지 시간: 5초 (작업 완료 전 자동 해제 방지)
+    private static final long LOCK_LEASE_TIME = 5L;
 
     @Override
     @Transactional
@@ -63,11 +75,27 @@ public class JobApplicationService implements ApplyJobUseCase, AcceptApplication
     }
 
     @Override
-    @Transactional
     public Long accept(AcceptApplicationUseCase.Command command) {
+        // 지원 먼저 조회해서 jobPostingId 획득
         JobApplicationEntity application = jobApplicationJpaRepository.findById(command.applicationId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
 
+        Long jobPostingId = application.getJobPosting().getId();
+        String lockKey = ACCEPT_LOCK_PREFIX + jobPostingId;
+
+        // 같은 공고에 대한 수락 요청을 직렬화
+        return distributedLockPort.executeWithLock(
+                lockKey,
+                LOCK_WAIT_TIME,
+                LOCK_LEASE_TIME,
+                TimeUnit.SECONDS,
+                () -> acceptWithLock(application)
+        );
+    }
+
+    @Transactional
+    public Long acceptWithLock(JobApplicationEntity application) {
+        // 락 안에서 정원 체크 (정확한 카운트 보장)
         int acceptedCount = jobApplicationJpaRepository.countByJobPostingIdAndStatus(
                 application.getJobPosting().getId(), ApplicationStatus.ACCEPTED.name());
 
@@ -85,7 +113,7 @@ public class JobApplicationService implements ApplyJobUseCase, AcceptApplication
 
         MatchEntity saved = matchJpaRepository.save(match);
 
-        // 노쇼 체크 예약 (근무 시작 + 15분 후 Redis TTL 만료 → 이벤트 발행)
+        // 노쇼 체크 예약
         noShowSchedulerPort.schedule(saved.getId(), application.getJobPosting().getStartAt());
 
         return saved.getId();
