@@ -38,6 +38,10 @@ public class MatchEntity {
     @Column(nullable = false)
     private MatchStatus status;
 
+    // QR 토큰 버전 (재발급 시 증가, 이전 토큰 무효화 용도)
+    @Column(name = "qr_version", nullable = false)
+    private Long qrVersion = 0L;
+
     @Column(name = "confirmed_at", nullable = false)
     private LocalDateTime confirmedAt;
 
@@ -53,6 +57,7 @@ public class MatchEntity {
         this.jobPosting = jobPosting;
         this.worker = worker;
         this.status = status;
+        this.qrVersion = 0L;
         this.confirmedAt = confirmedAt;
         this.completedAt = completedAt;
     }
@@ -64,5 +69,12 @@ public class MatchEntity {
     public void complete() {
         this.status = MatchStatus.COMPLETED;
         this.completedAt = LocalDateTime.now();
+    }
+
+    /**
+     * QR 토큰 재발급 시 버전 증가 → 이전 토큰 무효화
+     */
+    public void increaseQrVersion() {
+        this.qrVersion++;
     }
 }

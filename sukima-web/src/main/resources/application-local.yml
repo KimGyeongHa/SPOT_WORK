@@ -9,3 +9,6 @@ jwt:
   secret: rl6KfwPkI+JiVQimeA/XpWk6JwUlQpPqvVFta17h5t8=
   access-expiration: 900000
   refresh-expiration: 604800000
+
+qr:
+  secret: aB3xK9pL2sN7vQ4mR8tW6yZ1cF5hJ0dG3eU7iO2kS9bV4nX8zM6qP1rT5wA0lI3o

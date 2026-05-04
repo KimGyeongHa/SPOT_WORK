@@ -4,5 +4,5 @@ public interface CheckInUseCase {
 
     void checkIn(Command command);
 
-    record Command(Long matchId, Long userId, double latitude, double longitude) {}
+    record Command(Long matchId, Long userId, String qrToken, double latitude, double longitude) {}
 }

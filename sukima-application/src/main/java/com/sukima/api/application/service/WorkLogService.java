@@ -3,6 +3,7 @@ package com.sukima.api.application.service;
 import com.sukima.api.application.port.in.worklog.CheckInUseCase;
 import com.sukima.api.application.port.in.worklog.CheckOutUseCase;
 import com.sukima.api.application.port.out.noshow.NoShowSchedulerPort;
+import com.sukima.api.application.port.out.qr.QrTokenPort;
 import com.sukima.api.domain.common.exception.BusinessException;
 import com.sukima.api.domain.common.exception.ErrorCode;
 import com.sukima.api.domain.match.type.MatchStatus;
@@ -34,6 +35,7 @@ public class WorkLogService implements CheckInUseCase, CheckOutUseCase {
     private final MatchJpaRepository matchJpaRepository;
     private final PaymentJpaRepository paymentJpaRepository;
     private final NoShowSchedulerPort noShowSchedulerPort;
+    private final QrTokenPort qrTokenPort;
 
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
@@ -47,6 +49,9 @@ public class WorkLogService implements CheckInUseCase, CheckOutUseCase {
 
         // 본인의 매칭이 맞는지 확인
         validateOwner(match, command.userId());
+
+        // QR 토큰 검증
+        validateQrToken(command.qrToken(), match);
 
         // 매칭이 CONFIRMED 상태인지 확인
         if (match.getStatus() != MatchStatus.CONFIRMED) {
@@ -85,6 +90,9 @@ public class WorkLogService implements CheckInUseCase, CheckOutUseCase {
         // 본인의 매칭이 맞는지 확인
         validateOwner(match, command.userId());
 
+        // QR 토큰 검증
+        validateQrToken(command.qrToken(), match);
+
         if (!workLogJpaRepository.existsByMatchIdAndType(command.matchId(), WorkLogType.CHECK_IN)) {
             throw new BusinessException(ErrorCode.CHECK_IN_REQUIRED);
         }
@@ -120,6 +128,23 @@ public class WorkLogService implements CheckInUseCase, CheckOutUseCase {
     private void validateOwner(MatchEntity match, Long userId) {
         if (!match.getWorker().getUser().getId().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+    }
+
+    /**
+     * QR 토큰의 matchId, workerId, version이 매칭과 일치하는지 검증
+     */
+    private void validateQrToken(String qrToken, MatchEntity match) {
+        QrTokenPort.QrTokenInfo info = qrTokenPort.parse(qrToken);
+
+        if (!info.matchId().equals(match.getId())
+                || !info.workerId().equals(match.getWorker().getId())) {
+            throw new BusinessException(ErrorCode.INVALID_QR_TOKEN);
+        }
+
+        // 최신 버전이 아니면 거부 (재발급된 후 이전 토큰 사용 불가)
+        if (!info.version().equals(match.getQrVersion())) {
+            throw new BusinessException(ErrorCode.QR_VERSION_MISMATCH);
         }
     }
 
