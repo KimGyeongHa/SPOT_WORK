@@ -4,6 +4,7 @@ import com.sukima.api.application.port.in.application.AcceptApplicationUseCase;
 import com.sukima.api.application.port.in.application.ApplyJobUseCase;
 import com.sukima.api.application.port.out.lock.DistributedLockPort;
 import com.sukima.api.application.port.out.noshow.NoShowSchedulerPort;
+import com.sukima.api.application.port.out.notification.NotificationPort;
 import com.sukima.api.domain.application.type.ApplicationStatus;
 import com.sukima.api.domain.common.exception.BusinessException;
 import com.sukima.api.domain.common.exception.ErrorCode;
@@ -34,6 +35,7 @@ public class JobApplicationService implements ApplyJobUseCase, AcceptApplication
     private final MatchJpaRepository matchJpaRepository;
     private final NoShowSchedulerPort noShowSchedulerPort;
     private final DistributedLockPort distributedLockPort;
+    private final NotificationPort notificationPort;
 
     // 락 키 prefix
     private static final String ACCEPT_LOCK_PREFIX = "lock:accept:job:";
@@ -115,6 +117,13 @@ public class JobApplicationService implements ApplyJobUseCase, AcceptApplication
 
         // 노쇼 체크 예약
         noShowSchedulerPort.schedule(saved.getId(), application.getJobPosting().getStartAt());
+
+        // Worker에게 매칭 확정 알림 (SSE)
+        notificationPort.notifyMatchConfirmed(
+                application.getWorker().getUser().getId(),
+                saved.getId(),
+                application.getJobPosting().getTitle()
+        );
 
         return saved.getId();
     }

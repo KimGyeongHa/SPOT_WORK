@@ -1,6 +1,7 @@
 package com.sukima.api.application.service;
 
 import com.sukima.api.application.port.in.noshow.HandleNoShowUseCase;
+import com.sukima.api.application.port.out.notification.NotificationPort;
 import com.sukima.api.domain.common.exception.BusinessException;
 import com.sukima.api.domain.common.exception.ErrorCode;
 import com.sukima.api.domain.job.type.JobStatus;
@@ -26,6 +27,7 @@ public class NoShowService implements HandleNoShowUseCase {
     private final MatchJpaRepository matchJpaRepository;
     private final WorkLogJpaRepository workLogJpaRepository;
     private final NoShowScheduleJpaRepository noShowScheduleJpaRepository;
+    private final NotificationPort notificationPort;
 
     @Override
     @Transactional
@@ -58,6 +60,13 @@ public class NoShowService implements HandleNoShowUseCase {
 
         // 공고 다시 OPEN으로
         match.getJobPosting().reopen();
+
+        // Employer에게 노쇼 알림 (SSE)
+        notificationPort.notifyNoShow(
+                match.getJobPosting().getEmployer().getUser().getId(),
+                matchId,
+                worker.getName()
+        );
 
         // DB 처리 완료 마킹
         noShowScheduleJpaRepository.findByMatchId(matchId)
