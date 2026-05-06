@@ -1,5 +1,6 @@
 package com.sukima.api.application.service;
 
+import com.sukima.api.application.port.out.notification.NotificationPort;
 import com.sukima.api.domain.common.exception.BusinessException;
 import com.sukima.api.domain.common.exception.ErrorCode;
 import com.sukima.api.domain.common.type.RoleType;
@@ -51,6 +52,9 @@ class NoShowServiceTest {
 
     @Mock
     private NoShowScheduleJpaRepository noShowScheduleJpaRepository;
+
+    @Mock
+    private NotificationPort notificationPort;
 
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
@@ -122,7 +126,7 @@ class NoShowServiceTest {
     }
 
     @Test
-    @DisplayName("노쇼 처리 성공 - Worker 패널티 부여 및 공고 OPEN 복구")
+    @DisplayName("노쇼 처리 성공 - Worker 패널티 부여 및 공고 OPEN 복구 + Employer 알림")
     void handle_success_noshow() {
         // given
         given(matchJpaRepository.findById(1L)).willReturn(Optional.of(confirmedMatch));
@@ -133,14 +137,16 @@ class NoShowServiceTest {
         noShowService.handle(1L);
 
         // then
-        // Worker 노쇼 카운트 증가 확인
         assertThat(worker.getNoShowCount()).isEqualTo(1);
-        // 매칭 상태 CANCELLED 확인
         assertThat(confirmedMatch.getStatus()).isEqualTo(MatchStatus.CANCELLED);
-        // 공고 상태 OPEN 복구 확인
         assertThat(jobPosting.getStatus()).isEqualTo(JobStatus.OPEN);
-        // DB 처리 완료 마킹 확인
         assertThat(noShowSchedule.isProcessed()).isTrue();
+        // Employer에게 노쇼 알림 전송 확인
+        verify(notificationPort).notifyNoShow(
+                eq(2L), // employerUserId
+                eq(1L), // matchId
+                eq("홍길동") // workerName
+        );
     }
 
     @Test
@@ -182,7 +188,7 @@ class NoShowServiceTest {
     }
 
     @Test
-    @DisplayName("체크인 완료된 매칭 - 노쇼 아님")
+    @DisplayName("체크인 완료된 매칭 - 노쇼 아님, 알림 미전송")
     void handle_skip_checked_in() {
         // given - 체크인 완료
         given(matchJpaRepository.findById(1L)).willReturn(Optional.of(confirmedMatch));
@@ -193,8 +199,8 @@ class NoShowServiceTest {
 
         // then - 노쇼 처리 안 됨
         assertThat(worker.getNoShowCount()).isEqualTo(0);
-        assertThat(confirmedMatch.getStatus()).isEqualTo(MatchStatus.CONFIRMED); // 상태 변경 없음
-        assertThat(jobPosting.getStatus()).isEqualTo(JobStatus.OPEN); // 공고 상태 변경 없음
+        assertThat(confirmedMatch.getStatus()).isEqualTo(MatchStatus.CONFIRMED);
+        verify(notificationPort, never()).notifyNoShow(any(), any(), any());
     }
 
     @Test

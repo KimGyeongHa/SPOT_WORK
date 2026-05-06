@@ -2,7 +2,9 @@ package com.sukima.api.application.service;
 
 import com.sukima.api.application.port.in.application.AcceptApplicationUseCase;
 import com.sukima.api.application.port.in.application.ApplyJobUseCase;
+import com.sukima.api.application.port.out.lock.DistributedLockPort;
 import com.sukima.api.application.port.out.noshow.NoShowSchedulerPort;
+import com.sukima.api.application.port.out.notification.NotificationPort;
 import com.sukima.api.domain.application.type.ApplicationStatus;
 import com.sukima.api.domain.common.exception.BusinessException;
 import com.sukima.api.domain.common.exception.ErrorCode;
@@ -35,6 +37,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -61,11 +64,16 @@ class JobApplicationServiceTest {
     @Mock
     private NoShowSchedulerPort noShowSchedulerPort;
 
+    @Mock
+    private DistributedLockPort distributedLockPort;
+
+    @Mock
+    private NotificationPort notificationPort;
+
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
     private UserEntity workerUser;
     private WorkerEntity worker;
-    private WorkerEntity penalizedWorker;
     private JobPostingEntity jobPosting;
     private JobApplicationEntity application;
 
@@ -152,7 +160,6 @@ class JobApplicationServiceTest {
         // given
         ApplyJobUseCase.Command command = new ApplyJobUseCase.Command(1L, 1L);
 
-        // 3회 노쇼 → 패널티
         worker.increaseNoShow();
         worker.increaseNoShow();
         worker.increaseNoShow();
@@ -227,14 +234,12 @@ class JobApplicationServiceTest {
         jobApplicationService.apply(command);
     }
 
-    // ── accept 테스트 ──────────────────────────────────────────
+    // ── acceptWithLock 테스트 (분산락 내부 로직) ──────────────────
 
     @Test
-    @DisplayName("지원 수락 성공 - 매칭 생성 및 노쇼 스케줄 등록")
-    void accept_success() {
+    @DisplayName("지원 수락 성공 - 매칭 생성 + 노쇼 스케줄 + Worker 알림")
+    void acceptWithLock_success() {
         // given
-        AcceptApplicationUseCase.Command command = new AcceptApplicationUseCase.Command(1L, 1L);
-
         MatchEntity match = MatchEntity.builder()
                 .id(1L)
                 .application(application)
@@ -244,23 +249,47 @@ class JobApplicationServiceTest {
                 .confirmedAt(LocalDateTime.now())
                 .build();
 
-        given(jobApplicationJpaRepository.findById(command.applicationId())).willReturn(Optional.of(application));
         given(jobApplicationJpaRepository.countByJobPostingIdAndStatus(
                 jobPosting.getId(), ApplicationStatus.ACCEPTED.name())).willReturn(0);
         given(matchJpaRepository.save(any(MatchEntity.class))).willReturn(match);
 
         // when
-        Long matchId = jobApplicationService.accept(command);
+        Long matchId = jobApplicationService.acceptWithLock(application);
 
         // then
         assertThat(matchId).isEqualTo(1L);
         verify(matchJpaRepository).save(any(MatchEntity.class));
-        // 노쇼 스케줄 등록 호출 확인
         verify(noShowSchedulerPort).schedule(match.getId(), jobPosting.getStartAt());
+        // Worker에게 매칭 확정 알림 전송 확인
+        verify(notificationPort).notifyMatchConfirmed(
+                eq(workerUser.getId()),
+                eq(match.getId()),
+                eq(jobPosting.getTitle())
+        );
     }
 
     @Test
-    @DisplayName("지원 수락 실패 - 존재하지 않는 지원")
+    @DisplayName("지원 수락 실패 - 정원 초과 시 알림 미전송")
+    void acceptWithLock_fail_capacity_exceeded_no_notification() {
+        // given
+        given(jobApplicationJpaRepository.countByJobPostingIdAndStatus(
+                jobPosting.getId(), ApplicationStatus.ACCEPTED.name())).willReturn(3);
+
+        // when & then
+        assertThatThrownBy(() -> jobApplicationService.acceptWithLock(application))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.CAPACITY_EXCEEDED));
+
+        verify(matchJpaRepository, never()).save(any());
+        verify(noShowSchedulerPort, never()).schedule(any(), any());
+        verify(notificationPort, never()).notifyMatchConfirmed(any(), any(), any());
+    }
+
+    // ── accept (분산락 포함 전체 흐름) ──────────────────────────
+
+    @Test
+    @DisplayName("accept - 존재하지 않는 지원")
     void accept_fail_application_not_found() {
         // given
         AcceptApplicationUseCase.Command command = new AcceptApplicationUseCase.Command(999L, 1L);
@@ -274,26 +303,5 @@ class JobApplicationServiceTest {
                         .isEqualTo(ErrorCode.APPLICATION_NOT_FOUND));
 
         verify(matchJpaRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("지원 수락 실패 - 정원 초과")
-    void accept_fail_capacity_exceeded() {
-        // given
-        AcceptApplicationUseCase.Command command = new AcceptApplicationUseCase.Command(1L, 1L);
-
-        given(jobApplicationJpaRepository.findById(command.applicationId())).willReturn(Optional.of(application));
-        // 정원 3명인데 이미 3명 수락됨
-        given(jobApplicationJpaRepository.countByJobPostingIdAndStatus(
-                jobPosting.getId(), ApplicationStatus.ACCEPTED.name())).willReturn(3);
-
-        // when & then
-        assertThatThrownBy(() -> jobApplicationService.accept(command))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
-                        .isEqualTo(ErrorCode.CAPACITY_EXCEEDED));
-
-        verify(matchJpaRepository, never()).save(any());
-        verify(noShowSchedulerPort, never()).schedule(any(), any());
     }
 }
