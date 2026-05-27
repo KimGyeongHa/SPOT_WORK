@@ -2,6 +2,7 @@ package com.sukima.api.adapter.in.web.job.controller;
 
 import com.sukima.api.adapter.in.web.job.response.NearbyJobPostingResponse;
 import com.sukima.api.application.port.in.job.GetNearbyJobPostingsUseCase;
+import com.sukima.api.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "JobPosting", description = "공고 API (근처 공고 조회)")
+@Tag(name = "JobPosting", description = "공고 API")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/jobs")
@@ -21,9 +22,9 @@ public class JobPostingController {
 
     private final GetNearbyJobPostingsUseCase getNearbyJobPostingsUseCase;
 
-    @Operation(summary = "근처 공고 조회", description = "현재 위치 기준 반경 N미터 이내 OPEN 상태 공고를 조회합니다.")
+    @Operation(summary = "근처 공고 조회", description = "현재 위치 기준 반경 N미터 이내 OPEN 상태 공고 조회")
     @GetMapping("/nearby")
-    public ResponseEntity<List<NearbyJobPostingResponse>> getNearby(
+    public ResponseEntity<ApiResponse<List<NearbyJobPostingResponse>>> getNearby(
             @Parameter(description = "위도", example = "37.4979") @RequestParam double latitude,
             @Parameter(description = "경도", example = "127.0276") @RequestParam double longitude,
             @Parameter(description = "반경 (미터)", example = "3000") @RequestParam(defaultValue = "3000") double radius) {
@@ -34,6 +35,6 @@ public class JobPostingController {
                 .map(NearbyJobPostingResponse::from)
                 .toList();
 
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(ApiResponse.ok(result));
     }
 }

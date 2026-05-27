@@ -7,6 +7,7 @@ import com.sukima.api.adapter.in.web.auth.response.LoginResponse;
 import com.sukima.api.adapter.in.web.auth.response.RegisterResponse;
 import com.sukima.api.application.port.in.user.LoginUseCase;
 import com.sukima.api.application.port.in.user.RegisterUserUseCase;
+import com.sukima.api.common.response.ApiResponse;
 import com.sukima.api.domain.common.exception.BusinessException;
 import com.sukima.api.domain.common.exception.ErrorCode;
 import com.sukima.api.security.jwt.AccessTokenService;
@@ -19,7 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "Auth", description = "인증 API (회원가입, 로그인, 토큰 재발급, 로그아웃)")
+@Tag(name = "Auth", description = "인증 API")
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -31,19 +32,18 @@ public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final AccessTokenService accessTokenService;
 
-    @Operation(summary = "회원가입", description = "이메일, 비밀번호, 역할(WORKER/EMPLOYER)로 회원가입합니다.")
+    @Operation(summary = "회원가입")
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest request) {
         Long userId = registerUserUseCase.register(
                 new RegisterUserUseCase.Command(request.email(), request.password(), request.role())
         );
-        return ResponseEntity.ok(new RegisterResponse(userId));
+        return ResponseEntity.ok(ApiResponse.ok(new RegisterResponse(userId)));
     }
 
-    @Operation(summary = "로그인", description = "이메일, 비밀번호로 로그인 후 AccessToken(15분)과 RefreshToken(7일)을 발급합니다. " +
-            "새 기기에서 로그인 시 기존 기기의 AccessToken이 무효화됩니다.")
+    @Operation(summary = "로그인", description = "새 기기 로그인 시 기존 기기 AccessToken 무효화")
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         LoginUseCase.Result result = loginUseCase.login(
                 new LoginUseCase.Command(request.email(), request.password())
         );
@@ -51,17 +51,15 @@ public class AuthController {
         String accessToken = jwtTokenProvider.generateAccessToken(result.userId(), result.role());
         String refreshToken = jwtTokenProvider.generateRefreshToken(result.userId());
 
-        // AccessToken, RefreshToken 모두 Redis에 저장
-        // 새 기기에서 로그인하면 기존 토큰 덮어씌워서 이전 기기 접근 차단
         accessTokenService.save(result.userId(), accessToken);
         refreshTokenService.save(result.userId(), refreshToken);
 
-        return ResponseEntity.ok(new LoginResponse(accessToken, refreshToken));
+        return ResponseEntity.ok(ApiResponse.ok(new LoginResponse(accessToken, refreshToken)));
     }
 
-    @Operation(summary = "토큰 재발급", description = "RefreshToken으로 AccessToken과 RefreshToken을 재발급합니다. (RTR 방식 - 기존 토큰 폐기)")
+    @Operation(summary = "토큰 재발급", description = "RTR 방식 - 기존 토큰 폐기 후 재발급")
     @PostMapping("/refresh")
-    public ResponseEntity<LoginResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> refresh(@Valid @RequestBody RefreshRequest request) {
         String refreshToken = request.refreshToken();
 
         if (!jwtTokenProvider.validateToken(refreshToken)) {
@@ -75,29 +73,26 @@ public class AuthController {
         }
 
         String role = jwtTokenProvider.getRole(refreshToken) != null
-                ? jwtTokenProvider.getRole(refreshToken)
-                : "WORKER";
+                ? jwtTokenProvider.getRole(refreshToken) : "WORKER";
 
-        // 기존 토큰 전부 폐기
         accessTokenService.delete(userId);
         refreshTokenService.delete(userId);
 
-        // 새 토큰 발급 후 저장
         String newAccessToken = jwtTokenProvider.generateAccessToken(userId, role);
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(userId);
 
         accessTokenService.save(userId, newAccessToken);
         refreshTokenService.save(userId, newRefreshToken);
 
-        return ResponseEntity.ok(new LoginResponse(newAccessToken, newRefreshToken));
+        return ResponseEntity.ok(ApiResponse.ok(new LoginResponse(newAccessToken, newRefreshToken)));
     }
 
-    @Operation(summary = "로그아웃", description = "Access/RefreshToken을 Redis에서 삭제합니다.")
+    @Operation(summary = "로그아웃")
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshRequest request) {
+    public ResponseEntity<ApiResponse<Void>> logout(@Valid @RequestBody RefreshRequest request) {
         Long userId = jwtTokenProvider.getUserId(request.refreshToken());
         accessTokenService.delete(userId);
         refreshTokenService.delete(userId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 }
