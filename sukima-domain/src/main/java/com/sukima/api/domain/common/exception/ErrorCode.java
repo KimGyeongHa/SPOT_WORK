@@ -55,7 +55,10 @@ public enum ErrorCode {
     QR_VERSION_MISMATCH(400, "Q003", "재발급된 QR이 아닙니다. 최신 QR을 다시 확인해주세요."),
 
     // 동시성
-    LOCK_ACQUISITION_FAILED(409, "X003", "현재 처리 중인 요청이 있습니다. 잠시 후 다시 시도해주세요.");
+    LOCK_ACQUISITION_FAILED(409, "X003", "현재 처리 중인 요청이 있습니다. 잠시 후 다시 시도해주세요."),
+
+    // 알림
+    NOTIFICATION_NOT_FOUND(404, "N001", "존재하지 않는 알림입니다.");
 
     private final int status;
     private final String code;
