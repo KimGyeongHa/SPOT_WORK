@@ -27,6 +27,7 @@ public class JobPostingService implements CreateJobPostingUseCase, GetNearbyJobP
 
     private final JobPostingJpaRepository jobPostingJpaRepository;
     private final EmployerJpaRepository employerJpaRepository;
+    private final JobPostingNotificationBatch jobPostingNotificationBatch;
 
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
@@ -36,7 +37,6 @@ public class JobPostingService implements CreateJobPostingUseCase, GetNearbyJobP
         EmployerEntity employer = employerJpaRepository.findByUserId(command.userId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.EMPLOYER_NOT_FOUND));
 
-        // 패널티 체크
         if (employer.isPenalized()) {
             throw new BusinessException(ErrorCode.EMPLOYER_PENALIZED);
         }
@@ -45,7 +45,7 @@ public class JobPostingService implements CreateJobPostingUseCase, GetNearbyJobP
                 new Coordinate(command.longitude(), command.latitude())
         );
 
-        JobPostingEntity entity = JobPostingEntity.builder()
+        JobPostingEntity saved = jobPostingJpaRepository.save(JobPostingEntity.builder()
                 .employer(employer)
                 .title(command.title())
                 .description(command.description())
@@ -56,9 +56,12 @@ public class JobPostingService implements CreateJobPostingUseCase, GetNearbyJobP
                 .startAt(command.startAt())
                 .endAt(command.endAt())
                 .status(JobStatus.OPEN)
-                .build();
+                .build());
 
-        return jobPostingJpaRepository.save(entity).getId();
+        // 공고 위치 기준 반경 내 Worker에게 즉시 알림
+        jobPostingNotificationBatch.notifyNearbyWorkers(saved.getId(), saved.getTitle(), location);
+
+        return saved.getId();
     }
 
     @Override
