@@ -33,6 +33,19 @@ public class WorkerEntity extends BaseTimeEntity {
     @Column(name = "penalty_until")
     private LocalDateTime penaltyUntil;
 
+    // 공고 알림 설정
+    @Column(name = "notification_enabled", nullable = false)
+    private boolean notificationEnabled = false;
+
+    @Column(name = "notification_lat")
+    private Double notificationLat;
+
+    @Column(name = "notification_lng")
+    private Double notificationLng;
+
+    @Column(name = "notification_radius_meters")
+    private Integer notificationRadiusMeters;
+
     @Builder
     public WorkerEntity(Long id, UserEntity user, String name, String phone) {
         this.id = id;
@@ -40,6 +53,7 @@ public class WorkerEntity extends BaseTimeEntity {
         this.name = name;
         this.phone = phone;
         this.noShowCount = 0;
+        this.notificationEnabled = false;
     }
 
     public void increaseNoShow() {
@@ -49,6 +63,13 @@ public class WorkerEntity extends BaseTimeEntity {
 
     public boolean isPenalized() {
         return penaltyUntil != null && penaltyUntil.isAfter(LocalDateTime.now());
+    }
+
+    public void updateNotificationSetting(boolean enabled, Double lat, Double lng, Integer radiusMeters) {
+        this.notificationEnabled = enabled;
+        this.notificationLat = lat;
+        this.notificationLng = lng;
+        this.notificationRadiusMeters = radiusMeters;
     }
 
     private LocalDateTime calculatePenaltyUntil(int count) {

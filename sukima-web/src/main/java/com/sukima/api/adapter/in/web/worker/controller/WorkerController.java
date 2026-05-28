@@ -1,6 +1,7 @@
 package com.sukima.api.adapter.in.web.worker.controller;
 
 import com.sukima.api.adapter.in.web.worker.request.CheckRequest;
+import com.sukima.api.adapter.in.web.worker.request.NotificationSettingRequest;
 import com.sukima.api.adapter.in.web.worker.request.RegisterWorkerRequest;
 import com.sukima.api.adapter.in.web.worker.response.ApplyJobResponse;
 import com.sukima.api.adapter.in.web.worker.response.QrTokenResponse;
@@ -8,6 +9,7 @@ import com.sukima.api.adapter.in.web.worker.response.RegisterWorkerResponse;
 import com.sukima.api.application.port.in.application.ApplyJobUseCase;
 import com.sukima.api.application.port.in.qr.IssueQrTokenUseCase;
 import com.sukima.api.application.port.in.worker.RegisterWorkerUseCase;
+import com.sukima.api.application.port.in.worker.UpdateNotificationSettingUseCase;
 import com.sukima.api.application.port.in.worklog.CheckInUseCase;
 import com.sukima.api.application.port.in.worklog.CheckOutUseCase;
 import com.sukima.api.common.response.ApiResponse;
@@ -33,6 +35,7 @@ public class WorkerController {
     private final CheckInUseCase checkInUseCase;
     private final CheckOutUseCase checkOutUseCase;
     private final IssueQrTokenUseCase issueQrTokenUseCase;
+    private final UpdateNotificationSettingUseCase updateNotificationSettingUseCase;
 
     @Operation(summary = "구직자 프로필 등록")
     @PostMapping("/profile")
@@ -56,6 +59,18 @@ public class WorkerController {
                 new ApplyJobUseCase.Command(jobPostingId, userId)
         );
         return ResponseEntity.ok(ApiResponse.ok(new ApplyJobResponse(applicationId)));
+    }
+
+    @Operation(summary = "공고 알림 설정", description = "반경 내 신규 공고 알림을 설정합니다.")
+    @PutMapping("/notification-setting")
+    public ResponseEntity<ApiResponse<Void>> updateNotificationSetting(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody NotificationSettingRequest request) {
+
+        updateNotificationSettingUseCase.update(new UpdateNotificationSettingUseCase.Command(
+                userId, request.enabled(), request.lat(), request.lng(), request.radiusMeters()
+        ));
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @Operation(summary = "QR 토큰 발급", description = "만료: 근무 종료 + 30분")

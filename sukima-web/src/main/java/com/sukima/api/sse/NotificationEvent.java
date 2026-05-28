@@ -25,4 +25,13 @@ public record NotificationEvent(
                 LocalDateTime.now()
         );
     }
+
+    public static NotificationEvent newJobPosting(Long jobPostingId, String jobTitle) {
+        return new NotificationEvent(
+                "NEW_JOB_POSTING",
+                "'" + jobTitle + "' 공고가 근처에 등록되었습니다!",
+                jobPostingId,
+                LocalDateTime.now()
+        );
+    }
 }

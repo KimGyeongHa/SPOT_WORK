@@ -18,29 +18,30 @@ public class SseNotificationAdapter implements NotificationPort {
     @Override
     public void notifyMatchConfirmed(Long workerUserId, Long matchId, String jobTitle) {
         NotificationEvent event = NotificationEvent.matchConfirmed(matchId, jobTitle);
-
-        // DB 저장 (SSE 미연결 시 유실 방지)
-        notificationJpaRepository.save(NotificationEntity.builder()
-                .userId(workerUserId)
-                .type(event.type())
-                .message(event.message())
-                .referenceId(matchId)
-                .build());
-
+        save(workerUserId, event, matchId);
         sseEmitterService.sendToUser(workerUserId, "MATCH_CONFIRMED", event);
     }
 
     @Override
     public void notifyNoShow(Long employerUserId, Long matchId, String workerName) {
         NotificationEvent event = NotificationEvent.noShowDetected(matchId, workerName);
+        save(employerUserId, event, matchId);
+        sseEmitterService.sendToUser(employerUserId, "NO_SHOW", event);
+    }
 
+    @Override
+    public void notifyNewJobPosting(Long workerUserId, Long jobPostingId, String jobTitle) {
+        NotificationEvent event = NotificationEvent.newJobPosting(jobPostingId, jobTitle);
+        save(workerUserId, event, jobPostingId);
+        sseEmitterService.sendToUser(workerUserId, "NEW_JOB_POSTING", event);
+    }
+
+    private void save(Long userId, NotificationEvent event, Long referenceId) {
         notificationJpaRepository.save(NotificationEntity.builder()
-                .userId(employerUserId)
+                .userId(userId)
                 .type(event.type())
                 .message(event.message())
-                .referenceId(matchId)
+                .referenceId(referenceId)
                 .build());
-
-        sseEmitterService.sendToUser(employerUserId, "NO_SHOW", event);
     }
 }
