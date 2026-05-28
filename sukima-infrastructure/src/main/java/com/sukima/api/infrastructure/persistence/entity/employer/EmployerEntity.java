@@ -5,7 +5,6 @@ import com.sukima.api.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -31,9 +30,6 @@ public class EmployerEntity extends BaseTimeEntity {
     @Column(name = "company_name", nullable = false)
     private String companyName;
 
-    @Column(nullable = false)
-    private BigDecimal rating = BigDecimal.ZERO;
-
     @Column(name = "no_show_count", nullable = false)
     private int noShowCount = 0;
 
@@ -41,13 +37,12 @@ public class EmployerEntity extends BaseTimeEntity {
     private LocalDateTime penaltyUntil;
 
     @Builder
-    public EmployerEntity(Long id, UserEntity user, String name, String phone, String companyName, BigDecimal rating) {
+    public EmployerEntity(Long id, UserEntity user, String name, String phone, String companyName) {
         this.id = id;
         this.user = user;
         this.name = name;
         this.phone = phone;
         this.companyName = companyName;
-        this.rating = rating;
         this.noShowCount = 0;
     }
 

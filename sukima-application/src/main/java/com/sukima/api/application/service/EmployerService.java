@@ -12,8 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -36,14 +34,11 @@ public class EmployerService implements RegisterEmployerUseCase {
             throw new BusinessException(ErrorCode.INVALID_ROLE);
         }
 
-        EmployerEntity entity = EmployerEntity.builder()
+        return employerJpaRepository.save(EmployerEntity.builder()
                 .user(userEntity)
                 .name(command.name())
                 .phone(command.phone())
                 .companyName(command.companyName())
-                .rating(BigDecimal.ZERO)
-                .build();
-
-        return employerJpaRepository.save(entity).getId();
+                .build()).getId();
     }
 }
