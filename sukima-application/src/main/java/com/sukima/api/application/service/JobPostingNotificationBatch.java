@@ -6,41 +6,70 @@ import com.sukima.api.infrastructure.persistence.repository.WorkerJpaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Point;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
-/**
- * 공고 등록 시점에 반경 내 Worker에게 알림 발송.
- * 배치 대신 이벤트 기반으로 처리하여 즉시 알림 + DB 쿼리 최소화.
- */
 @Slf4j
 @Service
 @Transactional(readOnly = true)
-@RequiredArgsConstructor
 public class JobPostingNotificationBatch {
 
     private final WorkerJpaRepository workerJpaRepository;
     private final NotificationPort notificationPort;
+    private final Executor notificationExecutor;
+
+    public JobPostingNotificationBatch(
+            WorkerJpaRepository workerJpaRepository,
+            NotificationPort notificationPort,
+            @Qualifier("notificationExecutor") Executor notificationExecutor) {
+        this.workerJpaRepository = workerJpaRepository;
+        this.notificationPort = notificationPort;
+        this.notificationExecutor = notificationExecutor;
+    }
 
     public void notifyNearbyWorkers(Long jobPostingId, String jobTitle, Point location) {
         double jobLat = location.getY();
         double jobLng = location.getX();
 
-        // 공고 위치 기준 반경 내 알림 설정된 Worker 단 1번 쿼리
         List<WorkerEntity> workers = workerJpaRepository.findWorkersInRangeOf(jobLat, jobLng);
 
         if (workers.isEmpty()) return;
 
-        log.info("신규 공고 알림: jobPostingId={}, 대상 worker {}명", jobPostingId, workers.size());
+        log.info("신규 공고 알림 시작: jobPostingId={}, 대상 {}명", jobPostingId, workers.size());
 
-        for (WorkerEntity worker : workers) {
+        // ThreadPoolTaskExecutor로 병렬 처리
+        List<CompletableFuture<Void>> futures = workers.stream()
+                .map(worker -> CompletableFuture.runAsync(
+                        () -> sendNotification(worker, jobPostingId, jobTitle),
+                        notificationExecutor
+                ))
+                .toList();
+
+        // 전체 완료 대기
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("알림 발송 중 오류 발생: jobPostingId={}", jobPostingId, ex);
+                    } else {
+                        log.info("신규 공고 알림 완료: jobPostingId={}, {}명 발송", jobPostingId, workers.size());
+                    }
+                });
+    }
+
+    private void sendNotification(WorkerEntity worker, Long jobPostingId, String jobTitle) {
+        try {
             notificationPort.notifyNewJobPosting(
                     worker.getUser().getId(),
                     jobPostingId,
                     jobTitle
             );
+        } catch (Exception e) {
+            log.warn("알림 발송 실패: workerId={}, jobPostingId={}", worker.getId(), jobPostingId, e);
         }
     }
 }

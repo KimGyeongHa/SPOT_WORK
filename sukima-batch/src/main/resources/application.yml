@@ -1,0 +1,25 @@
+spring:
+  profiles:
+    active: local
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  batch:
+    job:
+      enabled: false  # 서버 시작 시 자동 실행 방지
+    jdbc:
+      initialize-schema: always  # 배치 메타 테이블 자동 생성
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+server:
+  port: 8081

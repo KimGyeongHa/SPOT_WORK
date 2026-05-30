@@ -36,6 +36,13 @@ public class SseNotificationAdapter implements NotificationPort {
         sseEmitterService.sendToUser(workerUserId, "NEW_JOB_POSTING", event);
     }
 
+    @Override
+    public void notifyPenaltyExpired(Long userId, String message) {
+        NotificationEvent event = NotificationEvent.penaltyExpired(message);
+        save(userId, event, null);
+        sseEmitterService.sendToUser(userId, "PENALTY_EXPIRED", event);
+    }
+
     private void save(Long userId, NotificationEvent event, Long referenceId) {
         notificationJpaRepository.save(NotificationEntity.builder()
                 .userId(userId)

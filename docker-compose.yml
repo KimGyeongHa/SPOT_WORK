@@ -32,6 +32,34 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build:
+      context: .
+      dockerfile: sukima-web/Dockerfile
+    container_name: sukima-api
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+
+  batch:
+    build:
+      context: .
+      dockerfile: sukima-batch/Dockerfile
+    container_name: sukima-batch
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+
 volumes:
   sukima-db-data:
   sukima-redis-data:
