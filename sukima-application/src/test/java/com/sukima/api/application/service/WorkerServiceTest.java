@@ -75,7 +75,6 @@ class WorkerServiceTest {
                         .user(workerUser)
                         .name(command.name())
                         .phone(command.phone())
-                        .rating(BigDecimal.ZERO)
                         .build()
         );
 

@@ -72,7 +72,6 @@ class QrTokenServiceTest {
                 .user(workerUser)
                 .name("홍길동")
                 .phone("010-1234-5678")
-                .rating(BigDecimal.ZERO)
                 .build();
 
         UserEntity employerUser = UserEntity.builder()
@@ -88,7 +87,6 @@ class QrTokenServiceTest {
                 .name("김사장")
                 .phone("010-9999-8888")
                 .companyName("스키마카페")
-                .rating(BigDecimal.ZERO)
                 .build();
 
         jobPosting = JobPostingEntity.builder()

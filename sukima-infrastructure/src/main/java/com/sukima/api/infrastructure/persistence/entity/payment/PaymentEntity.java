@@ -53,4 +53,17 @@ public class PaymentEntity {
         this.paidAt = paidAt;
         this.createdAt = createdAt;
     }
+
+    public void complete() {
+        this.status = PaymentStatus.COMPLETED;
+        this.paidAt = LocalDateTime.now();
+    }
+
+    public void fail() {
+        this.status = PaymentStatus.FAILED;
+    }
+
+    public boolean isPending() {
+        return this.status == PaymentStatus.PENDING;
+    }
 }

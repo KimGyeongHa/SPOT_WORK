@@ -76,7 +76,6 @@ class EmployerServiceTest {
                         .name(command.name())
                         .phone(command.phone())
                         .companyName(command.companyName())
-                        .rating(BigDecimal.ZERO)
                         .build()
         );
 

@@ -159,7 +159,12 @@ public class WorkLogService implements CheckInUseCase, CheckOutUseCase {
         }
     }
 
+    // 중복 정산 방지 + PENDING 상태로 생성 (외부 결제 API 콜백 시 COMPLETED 전환)
     private void processPayment(MatchEntity match, LocalDateTime checkOutTime) {
+        if (paymentJpaRepository.existsByMatchId(match.getId())) {
+            throw new BusinessException(ErrorCode.DUPLICATE_PAYMENT);
+        }
+
         WorkLogEntity checkIn = workLogJpaRepository
                 .findByMatchIdAndType(match.getId(), WorkLogType.CHECK_IN)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHECK_IN_REQUIRED));
@@ -167,16 +172,13 @@ public class WorkLogService implements CheckInUseCase, CheckOutUseCase {
         long minutes = Duration.between(checkIn.getScannedAt(), checkOutTime).toMinutes();
         int amount = (int) (match.getJobPosting().getHourlyWage() * minutes / 60.0);
 
-        PaymentEntity payment = PaymentEntity.builder()
+        paymentJpaRepository.save(PaymentEntity.builder()
                 .match(match)
                 .worker(match.getWorker())
                 .amount(amount)
-                .status(PaymentStatus.COMPLETED)
-                .paidAt(LocalDateTime.now())
+                .status(PaymentStatus.PENDING)
                 .createdAt(LocalDateTime.now())
-                .build();
-
-        paymentJpaRepository.save(payment);
+                .build());
     }
 
     private double haversine(double lat1, double lng1, double lat2, double lng2) {

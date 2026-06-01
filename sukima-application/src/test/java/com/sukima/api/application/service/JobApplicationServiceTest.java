@@ -91,7 +91,6 @@ class JobApplicationServiceTest {
                 .user(workerUser)
                 .name("홍길동")
                 .phone("010-1234-5678")
-                .rating(BigDecimal.ZERO)
                 .build();
 
         jobPosting = JobPostingEntity.builder()

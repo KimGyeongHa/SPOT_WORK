@@ -58,7 +58,12 @@ public enum ErrorCode {
     LOCK_ACQUISITION_FAILED(409, "X003", "현재 처리 중인 요청이 있습니다. 잠시 후 다시 시도해주세요."),
 
     // 알림
-    NOTIFICATION_NOT_FOUND(404, "N001", "존재하지 않는 알림입니다.");
+    NOTIFICATION_NOT_FOUND(404, "N001", "존재하지 않는 알림입니다."),
+
+    // 정산
+    DUPLICATE_PAYMENT(400, "S001", "이미 정산이 완료되었습니다."),
+    PAYMENT_NOT_FOUND(404, "S002", "존재하지 않는 정산입니다."),
+    INVALID_PAYMENT_STATUS(400, "S003", "처리할 수 없는 정산 상태입니다.");
 
     private final int status;
     private final String code;

@@ -70,7 +70,6 @@ class JobPostingServiceTest {
                 .name("홍길동")
                 .phone("010-1234-5678")
                 .companyName("스키마카페")
-                .rating(BigDecimal.ZERO)
                 .build();
 
         command = new CreateJobPostingUseCase.Command(
