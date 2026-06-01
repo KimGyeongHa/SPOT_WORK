@@ -1,13 +1,13 @@
 # API-SUKIMA
 
-> 스키마바이트(すきまバイト) 서비스를 모티브로 한 단기 알바 매칭 플랫폼 API
+> 스키마바이트(すきまバイト)를 모티브로 한 단기 알바 매칭 플랫폼 백엔드 API
 
 <br>
 
 ## 📌 프로젝트 개요
 
-본 프로젝트는 일본의 단기 알바 매칭 서비스 **스키마바이트**를 모티브입니다.
-학습했던 기술들을 사용하여, 새로운 아키텍처 패턴을 직접 적용해보기 위한 **학습 목적의 포트폴리오 프로젝트**입니다.
+일본의 단기 알바 매칭 서비스 **스키마바이트**를 모티브로 한 포트폴리오 프로젝트입니다.  
+학습한 기술들을 실제 서비스 흐름에 적용하고, 실무에서 마주치는 동시성·실시간 처리·배치 등의 문제를 직접 다루는 것을 목표로 개발했습니다.
 
 <br>
 
@@ -17,25 +17,22 @@
 
 ```
 API-SUKIMA/
-├── sukima-domain/          # 도메인 엔티티, 타입 정의 (순수 Java)
-├── sukima-application/     # 유스케이스(Port/in), 서비스 구현체
-├── sukima-infrastructure/  # JPA Entity, Repository, DB 연동
-└── sukima-web/             # Controller, DTO, Security, 진입점
+├── sukima-domain/          # 도메인 타입, 예외 정의 (순수 Java)
+├── sukima-application/     # UseCase(Port/in), Service
+├── sukima-infrastructure/  # JPA Entity, Repository
+├── sukima-web/             # Controller, Security, JWT, SSE
+└── sukima-batch/           # Spring Batch (만료 공고, 패널티 만료 알림)
 ```
 
 ### 아키텍처 선택 배경
 
-본 프로젝트는 **헥사고날 아키텍처(Ports & Adapters)** 를 참고하되,  
-1인 개발 환경과 학습 효율을 고려하여 **실무에서 많이 사용하는 방식으로 타협한 구조**를 채택했습니다.
+헥사고날 아키텍처를 참고하되, 1인 개발 효율을 고려해 실용적인 구조를 채택했습니다.
 
 | 구분 | 헥사고날 퓨리스트 | 본 프로젝트 |
 |------|---------------|------------|
-| Port/out | application 레이어에 인터페이스 정의 | 생략 |
+| Port/in | UseCase 인터페이스 정의 | ✅ 유지 |
+| Port/out | application에 인터페이스 정의 | 일부만 사용 (NoShow, QR, Lock, Notification) |
 | 의존성 방향 | application → port/out ← infrastructure | application → infrastructure 직접 참조 |
-| 장점 | 완전한 의존성 역전 | 구조 단순화, 개발 속도 향상 |
-
-> **학습 포인트**: 헥사고날 아키텍처의 핵심인 Port/in(UseCase 인터페이스)은 유지하여  
-> 레이어 간 역할 분리와 인터페이스 기반 설계는 유지합니다.
 
 <br>
 
@@ -44,43 +41,66 @@ API-SUKIMA/
 | 분류 | 기술 |
 |------|------|
 | Language | Java 21 |
-| Framework | Spring Boot 3.3.1 |
+| Framework | Spring Boot 3.3.1, Spring Batch |
 | ORM | Spring Data JPA, Hibernate Spatial |
 | Database | PostgreSQL 16 + PostGIS 3.4 |
 | Cache | Redis 7.2 |
 | Auth | JWT (jjwt 0.12.5), Spring Security |
-| Infra | Docker, Docker Compose, Nginx |
+| 동시성 | Redisson 3.27.2 (분산락) |
+| 비동기 | ThreadPoolTaskExecutor, CompletableFuture |
+| API 문서 | Swagger (springdoc-openapi 2.5.0) |
+| Infra | Docker, Docker Compose |
 | Build | Gradle (멀티모듈) |
+| Test | JUnit5, Mockito, BDDMockito |
 
 <br>
 
 ## 🔑 핵심 기능 및 기술 포인트
 
-### 1. 위치 기반 공고 조회 (PostGIS)
+### 1. 위치 기반 공고 조회 / 알림 (PostGIS)
 - `GEOMETRY(POINT, 4326)` 타입으로 공고 위치 저장
-- `ST_DWithin`으로 현재 위치 기준 반경 N미터 이내 공고 조회
-- `GIST 인덱스`로 공간 검색 성능 최적화
+- `ST_DWithin` + `GIST 인덱스`로 반경 N미터 이내 공고 조회
+- 공고 등록 시 Worker의 알림 위치 기준 반경 내 대상자 **단 1번 쿼리**로 추출 → 즉시 알림
 
-### 2. 동시성 제어 (Redis)
-- 공고 지원 시 정원 초과 방지를 Redis로 atomic하게 처리
-- 분산 환경에서도 안전한 동시성 보장
+### 2. 지원 수락 동시성 제어 (Redisson 분산락)
+- 같은 공고에 대한 수락 요청을 `lock:accept:job:{jobPostingId}` 키로 직렬화
+- 다른 공고 요청은 서로 영향 없이 동시 처리 가능
 
-### 3. QR 체크인/아웃 + 위치 검증
-- 근무 시작/종료 시 QR 스캔
-- Haversine 공식으로 현재 위치가 근무지 반경 100m 이내인지 검증
-- 체크아웃 시 근무 시간 기반 자동 정산
+### 3. QR 체크인/아웃
+- 인증 JWT와 별개의 시크릿으로 QR 전용 JWT 발급
+- 재발급 시 `qrVersion` 증가 → 이전 토큰 자동 무효화
+- Haversine 공식으로 근무지 반경 **100m 이내** 검증
+- 체크아웃 시 `시급 × 실근무시간(분) / 60` 자동 정산 (PENDING 상태로 생성)
 
-### 4. SSE 실시간 알림
-- 매칭 확정 시 Worker에게 Server-Sent Events로 실시간 알림
+### 4. 노쇼 감지 (Redis Keyspace Notification)
+- 매칭 확정 시 `noshow:{matchId}` TTL 키 등록 (근무시작 + 15분)
+- TTL 만료 → `__keyevent@0__:expired` 이벤트 → 체크인 없으면 노쇼 처리
+- **DB 백업**: 서버 재시작 시 `@PostConstruct`로 미처리 스케줄 복구
+- 패널티: 3회 → 7일, 5회 → 30일 자동 부여
 
-### 5. JWT 인증 (Access + Refresh Token)
-- AccessToken (15분) + RefreshToken (7일) 이중 토큰 구조
-- RefreshToken은 Redis에 저장, RTR(Refresh Token Rotation) 방식 적용
-- 재발급 시 기존 RefreshToken 폐기 → 탈취 방어
+### 5. SSE 실시간 알림 + 유실 방지
+- `ConcurrentHashMap`으로 userId별 SseEmitter 관리 (단일 기기)
+- 알림 발생 시 **DB에 먼저 저장** → SSE 전송 (유실 방지, 다중 서버 대응)
+- SSE 미연결 시에도 DB에 저장 → 재연결 후 미수신 알림 조회 가능
+- 이벤트 종류: `MATCH_CONFIRMED` / `NO_SHOW` / `NEW_JOB_POSTING` / `PENALTY_EXPIRED`
+
+### 6. JWT 단일 기기 로그인
+- AccessToken(15분) + RefreshToken(7일) RTR 방식
+- **AccessToken도 Redis에 저장** → 새 기기 로그인 시 기존 기기 즉시 무효화
+- 매 요청마다 Redis의 AccessToken과 일치 여부 검증
+
+### 7. 병렬 알림 발송 (ThreadPoolTaskExecutor + CompletableFuture)
+- 공고 등록 시 반경 내 Worker들에게 알림을 **병렬로 동시 발송**
+- `ThreadPoolTaskExecutor` (core 5, max 10, queue 200)
+- 일부 실패해도 나머지 Worker 알림은 정상 발송
+
+### 8. Spring Batch (별도 서버)
+- **만료 공고 자동 CLOSED**: 매 시간, JpaPagingItemReader 100건 청크 처리
+- **패널티 만료 알림**: 매 시간 30분, Worker/Employer Step 분리
 
 <br>
 
-## 📦 모듈별 의존성
+## 📦 모듈 의존성
 
 ```
 sukima-domain
@@ -89,22 +109,37 @@ sukima-infrastructure (domain 참조)
     ↑
 sukima-application (domain + infrastructure 참조)
     ↑
-sukima-web (전체 참조 + Security, JWT)
+sukima-web (전체 참조 + Security, JWT, SSE)
+sukima-batch (전체 참조 + Spring Batch)
+```
+
+<br>
+
+## 🚀 실행 방법
+
+```bash
+# 인프라 실행 (PostgreSQL + Redis)
+docker-compose up -d db redis
+
+# API 서버 실행
+./gradlew :sukima-web:bootRun
+
+# 배치 서버 실행
+./gradlew :sukima-batch:bootRun
 ```
 
 <br>
 
 ## 🗄️ DDL
 
-📄 [노션에서 보기](https://button-pixie-53d.notion.site/29c9adcc9f4d80f9a203ebcac2df5bbb?source=copy_link)
+📄 [노션에서 보기](https://button-pixie-53d.notion.site/29c9adcc9f4d80f9a203ebcac2df5bbb)
 
 <br>
 
 ## 📡 API 명세
 
 Swagger UI를 통해 확인할 수 있습니다.
+
 ```
 http://localhost:8080/swagger-ui/index.html
 ```
-
-<br>
