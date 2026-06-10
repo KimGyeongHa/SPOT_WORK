@@ -113,23 +113,6 @@ sukima-web (전체 참조 + Security, JWT, SSE)
 sukima-batch (전체 참조 + Spring Batch)
 ```
 
-<br>
-
-## 🚀 실행 방법
-
-```bash
-# 인프라 실행 (PostgreSQL + Redis)
-docker-compose up -d db redis
-
-# API 서버 실행
-./gradlew :sukima-web:bootRun
-
-# 배치 서버 실행
-./gradlew :sukima-batch:bootRun
-```
-
-<br>
-
 ## 🗄️ DDL
 
 📄 [노션에서 보기](https://button-pixie-53d.notion.site/29c9adcc9f4d80f9a203ebcac2df5bbb)
