@@ -5,15 +5,15 @@ services:
     image: postgis/postgis:16-3.4
     container_name: sukima-db
     environment:
-      POSTGRES_DB: sukima
-      POSTGRES_USER: sukima
-      POSTGRES_PASSWORD: sukima1234
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
-      - sukima-db-data:/var/lib/postgresql/data
+      - ${DB_VOLUME_PATH}:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U sukima -d sukima" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,7 +25,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - sukima-redis-data:/data
+      - ${REDIS_VOLUME_PATH}:/data
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -33,9 +33,7 @@ services:
       retries: 5
 
   api:
-    build:
-      context: .
-      dockerfile: sukima-web/Dockerfile
+    image: ${DOCKER_HUB_USERNAME}/sukima-api:latest
     container_name: sukima-api
     ports:
       - "8080:8080"
@@ -46,11 +44,16 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      QR_SECRET: ${QR_SECRET}
 
   batch:
-    build:
-      context: .
-      dockerfile: sukima-batch/Dockerfile
+    image: ${DOCKER_HUB_USERNAME}/sukima-batch:latest
     container_name: sukima-batch
     depends_on:
       db:
@@ -59,7 +62,8 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
-
-volumes:
-  sukima-db-data:
-  sukima-redis-data:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
