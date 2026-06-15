@@ -5,6 +5,5 @@ RUN gradle :sukima-web:build -x test --no-daemon
 
 FROM amazoncorretto:21
 WORKDIR /app
-RUN mkdir -p /log
 COPY --from=builder /app/sukima-web/build/libs/*.jar app.jar
 ENTRYPOINT ["java", "-jar", "app.jar"]
