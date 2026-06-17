@@ -1,7 +1,8 @@
 FROM gradle:8.5-jdk21 AS builder
 WORKDIR /app
 COPY . .
-RUN ./gradle :sukima-web:build -x test --no-daemon
+RUN chmod +x ./gradlew
+RUN ./gradlew :sukima-web:bootJar -x test --no-daemon --stacktrace
 
 FROM amazoncorretto:21
 WORKDIR /app
