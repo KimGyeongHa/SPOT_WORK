@@ -43,7 +43,5 @@ bin/
 .DS_Store
 
 ### Secret ###
-**/resources/application-local.yml
-**/resources/application-prod.yml
 .env
 .env.example
