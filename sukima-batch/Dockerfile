@@ -1,7 +1,7 @@
 FROM gradle:8.5-jdk21 AS builder
 WORKDIR /app
 COPY . .
-RUN gradle :sukima-batch:build -x test --no-daemon
+RUN ./gradle :sukima-batch:build -x test --no-daemon
 
 FROM amazoncorretto:21
 WORKDIR /app
