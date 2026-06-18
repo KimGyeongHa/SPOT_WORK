@@ -1,10 +1,9 @@
 package com.sukima.api.batch.job;
 
-import com.sukima.api.application.port.out.notification.NotificationPort;
 import com.sukima.api.infrastructure.persistence.entity.employer.EmployerEntity;
+import com.sukima.api.infrastructure.persistence.entity.notification.NotificationEntity;
 import com.sukima.api.infrastructure.persistence.entity.worker.WorkerEntity;
-import com.sukima.api.infrastructure.persistence.repository.EmployerJpaRepository;
-import com.sukima.api.infrastructure.persistence.repository.WorkerJpaRepository;
+import com.sukima.api.infrastructure.persistence.repository.NotificationJpaRepository;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,9 +31,7 @@ public class PenaltyExpiredJobConfig {
     private final JobRepository jobRepository;
     private final PlatformTransactionManager transactionManager;
     private final EntityManagerFactory entityManagerFactory;
-    private final WorkerJpaRepository workerJpaRepository;
-    private final EmployerJpaRepository employerJpaRepository;
-    private final NotificationPort notificationPort;
+    private final NotificationJpaRepository notificationJpaRepository;
 
     private static final int CHUNK_SIZE = 100;
 
@@ -85,10 +82,11 @@ public class PenaltyExpiredJobConfig {
     public ItemWriter<WorkerEntity> expiredWorkerPenaltyWriter() {
         return chunk -> {
             for (WorkerEntity worker : chunk.getItems()) {
-                notificationPort.notifyPenaltyExpired(
-                        worker.getUser().getId(),
-                        "패널티가 해제되었습니다. 다시 공고에 지원할 수 있습니다."
-                );
+                notificationJpaRepository.save(NotificationEntity.builder()
+                        .userId(worker.getUser().getId())
+                        .type("PENALTY_EXPIRED")
+                        .message("패널티가 해제되었습니다. 다시 공고에 지원할 수 있습니다.")
+                        .build());
             }
             log.info("Worker 패널티 만료 알림 {}건 발송", chunk.getItems().size());
         };
@@ -133,10 +131,11 @@ public class PenaltyExpiredJobConfig {
     public ItemWriter<EmployerEntity> expiredEmployerPenaltyWriter() {
         return chunk -> {
             for (EmployerEntity employer : chunk.getItems()) {
-                notificationPort.notifyPenaltyExpired(
-                        employer.getUser().getId(),
-                        "패널티가 해제되었습니다. 다시 공고를 등록할 수 있습니다."
-                );
+                notificationJpaRepository.save(NotificationEntity.builder()
+                        .userId(employer.getUser().getId())
+                        .type("PENALTY_EXPIRED")
+                        .message("패널티가 해제되었습니다. 다시 공고를 등록할 수 있습니다.")
+                        .build());
             }
             log.info("Employer 패널티 만료 알림 {}건 발송", chunk.getItems().size());
         };
