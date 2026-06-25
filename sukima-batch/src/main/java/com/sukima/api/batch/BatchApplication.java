@@ -8,7 +8,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(scanBasePackages = {
         "com.sukima.api.batch",
-        "com.sukima.api.application",
         "com.sukima.api.infrastructure"
 })
 @EnableScheduling
