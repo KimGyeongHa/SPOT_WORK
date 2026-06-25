@@ -3,6 +3,9 @@ name: Build and Deploy
 on:
   push:
     branches: [ master ]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
   workflow_dispatch:
 
 jobs:

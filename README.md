@@ -49,7 +49,8 @@ API-SUKIMA/
 | 동시성 | Redisson 3.27.2 (분산락) |
 | 비동기 | ThreadPoolTaskExecutor, CompletableFuture |
 | API 문서 | Swagger (springdoc-openapi 2.5.0) |
-| Infra | Docker, Docker Compose |
+| Infra | Docker, Docker Compose, Nginx |
+| CI/CD | GitHub Actions |
 | Build | Gradle (멀티모듈) |
 | Test | JUnit5, Mockito, BDDMockito |
 
@@ -124,5 +125,5 @@ sukima-batch (전체 참조 + Spring Batch)
 Swagger UI를 통해 확인할 수 있습니다.
 
 ```
-http://localhost:8080/swagger-ui/index.html
+https://sukima-api.duckdns.org/swagger-ui/index.html
 ```
